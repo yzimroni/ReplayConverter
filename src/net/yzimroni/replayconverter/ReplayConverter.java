@@ -2,10 +2,15 @@ package net.yzimroni.replayconverter;
 
 import java.io.File;
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import org.bukkit.Location;
+import org.spacehq.mc.auth.data.GameProfile.Property;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.replaymod.replaystudio.PacketData;
 import com.replaymod.replaystudio.replay.Replay;
 
@@ -13,6 +18,7 @@ import net.yzimroni.bukkitanimations.animation.AnimationManager;
 import net.yzimroni.bukkitanimations.data.action.ActionData;
 import net.yzimroni.bukkitanimations.record.RecordingSession;
 import net.yzimroni.replayconverter.bukkit.BukkitWorld;
+import net.yzimroni.replayconverter.data.EntityData;
 
 public class ReplayConverter {
 
@@ -22,6 +28,9 @@ public class ReplayConverter {
 	private PacketHandler packetHandler;
 
 	private int lastTick;
+
+	private Cache<UUID, Property> skinCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.SECONDS).build();
+	private HashMap<Integer, EntityData> trackedEntities = new HashMap<>();
 
 	public ReplayConverter(Replay replay, File output) {
 		super();
@@ -61,6 +70,14 @@ public class ReplayConverter {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+
+	public Cache<UUID, Property> getSkinCache() {
+		return skinCache;
+	}
+
+	public HashMap<Integer, EntityData> getTrackedEntities() {
+		return trackedEntities;
 	}
 
 }
