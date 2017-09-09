@@ -35,6 +35,14 @@ public class Location {
 		this(vector.getX(), vector.getY(), vector.getZ());
 	}
 
+	public Location add(double x, double y, double z) {
+		return new Location(this.x + x, this.y + y, this.z + z, yaw, pitch);
+	}
+
+	public Location changeLook(float yaw, float pitch) {
+		return new Location(x, y, z, yaw, pitch);
+	}
+
 	public double getX() {
 		return x;
 	}
@@ -73,6 +81,11 @@ public class Location {
 
 	public void setPitch(float pitch) {
 		this.pitch = pitch;
+	}
+
+	@Override
+	public String toString() {
+		return "Location [x=" + x + ", y=" + y + ", z=" + z + ", yaw=" + yaw + ", pitch=" + pitch + "]";
 	}
 
 }

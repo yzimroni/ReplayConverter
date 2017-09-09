@@ -34,6 +34,11 @@ import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerCollectItemPack
 import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerDestroyEntitiesPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerEntityEffectPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerEntityMetadataPacket;
+import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerEntityMovementPacket;
+import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerEntityPositionPacket;
+import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerEntityPositionRotationPacket;
+import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerEntityRotationPacket;
+import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerEntityTeleportPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.entity.spawn.ServerSpawnExpOrbPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.entity.spawn.ServerSpawnGlobalEntityPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.entity.spawn.ServerSpawnMobPacket;
@@ -74,25 +79,13 @@ public class PacketHandler {
 		 * @formatter:off
 		 * TODO ItemStacks saving
 		 * 
-		 * 
-		 * 
-		 * 
-		 * 
-		 * 
 		 * ServerEntityEquipmentPacket
-		 * ServerEntityHeadLookPacket
-		 * 
-		 * ServerEntityMovementPacket
+		 * ? ServerEntityHeadLookPacket
 		 * ServerEntityNBTUpdatePacket
-		 * ServerEntityPositionPacket
-		 * ServerEntityPositionRotationPacket
 		 * ? ServerEntityPropertiesPacket
 		 * ServerEntityRemoveEffectPacket
-		 * ServerEntityRotationPacket
 		 * ? ServerEntityStatusPacket
-		 * ServerEntityTeleportPacket
 		 * ? ServerEntityVelocityPacket
-		 * 
 		 * ? ServerBlockValuePacket
 		 * ServerChunkDataPacket
 		 * 
@@ -100,7 +93,6 @@ public class PacketHandler {
 		 * ServerMultiChunkDataPacket
 		 * ServerPlayEffectPacket
 		 * ? ServerPlaySoundPacket
-		 * 
 		 * ServerUpdateSignPacket
 		 * ? ServerUpdateTileEntityPacket
 		 * ServerChatPacket
@@ -275,8 +267,30 @@ public class PacketHandler {
 			}
 		});
 
-		addHandler(Packet.class, (p, c) -> {
+		addMultipleHandlers((p, c) -> {
+			if (c.getTrackedEntities().containsKey(p.getEntityId())) {
+				Location location = c.getTrackedEntities().get(p.getEntityId()).getLocation();
+				location = location.add(p.getMovementX(), p.getMovementY(), p.getMovementZ());
+				if (p instanceof ServerEntityPositionRotationPacket || p instanceof ServerEntityRotationPacket) {
+					location = location.changeLook(p.getYaw(), p.getPitch());
+				}
+				c.addAction(new ActionData(ActionType.ENTITY_MOVE).data("entityId", p.getEntityId()).data("location",
+						location));
+				c.getTrackedEntities().get(p.getEntityId()).setLocation(location);
+			}
+		}, ServerEntityMovementPacket.class, ServerEntityPositionPacket.class, ServerEntityPositionRotationPacket.class,
+				ServerEntityRotationPacket.class);
 
+		addHandler(ServerEntityTeleportPacket.class, (p, c) -> {
+			if (c.getTrackedEntities().containsKey(p.getEntityId())) {
+				Location location = new Location(p.getX(), p.getY(), p.getZ(), p.getYaw(), p.getPitch());
+				c.addAction(new ActionData(ActionType.ENTITY_MOVE).data("entityId", p.getEntityId()).data("location",
+						location));
+				c.getTrackedEntities().get(p.getEntityId()).setLocation(location);
+			}
+		});
+
+		addHandler(Packet.class, (p, c) -> {
 		});
 	}
 
@@ -369,6 +383,14 @@ public class PacketHandler {
 
 	private static <T extends Packet> void addHandler(Class<T> packet, BiConsumer<T, ReplayConverter> handler) {
 		HANDLERS.put(packet, handler);
+	}
+
+	@SafeVarargs
+	private static <T extends Packet> void addMultipleHandlers(BiConsumer<T, ReplayConverter> handler,
+			Class<? extends T>... packets) {
+		for (Class<? extends T> packet : packets) {
+			HANDLERS.put(packet, handler);
+		}
 	}
 
 	@SuppressWarnings("unchecked")
