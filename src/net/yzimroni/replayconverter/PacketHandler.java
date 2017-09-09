@@ -17,6 +17,7 @@ import org.bukkit.entity.Sheep;
 import org.bukkit.entity.Slime;
 import org.bukkit.entity.Zombie;
 import org.bukkit.util.Vector;
+import org.spacehq.mc.auth.data.GameProfile;
 import org.spacehq.mc.protocol.data.game.EntityMetadata;
 import org.spacehq.mc.protocol.data.game.Position;
 import org.spacehq.mc.protocol.data.game.values.PlayerListEntry;
@@ -131,25 +132,32 @@ public class PacketHandler {
 		});
 
 		addHandler(ServerCollectItemPacket.class, (p, c) -> {
-			c.addAction(new ActionData(ActionType.ENTITY_PICKUP).data("entityId", p.getCollectedEntityId())
-					.data("playerId", p.getCollectorEntityId()));
+			if (c.getTrackedEntities().containsKey(p.getCollectedEntityId())
+					&& c.getTrackedEntities().containsKey(p.getCollectorEntityId())) {
+				c.addAction(new ActionData(ActionType.ENTITY_PICKUP).data("entityId", p.getCollectedEntityId())
+						.data("playerId", p.getCollectorEntityId()));
+			}
 		});
 
 		addHandler(ServerDestroyEntitiesPacket.class, (p, c) -> {
 			for (int entityId : p.getEntityIds()) {
-				c.addAction(new ActionData(ActionType.DESPAWN_ENTITY).data("entityId", entityId));
-				c.getTrackedEntities().remove(entityId);
+				if (c.getTrackedEntities().containsKey(entityId)) {
+					c.addAction(new ActionData(ActionType.DESPAWN_ENTITY).data("entityId", entityId));
+					c.getTrackedEntities().remove(entityId);
+				}
 			}
 		});
 
 		addHandler(ServerEntityEffectPacket.class, (p, c) -> {
-			HashMap<String, Object> potion = new HashMap<>();
-			potion.put("effect", p.getEffect().ordinal() + 1);
-			potion.put("duration", p.getDuration());
-			potion.put("amplifier", p.getAmplifier());
-			potion.put("has-particles", !p.getHideParticles());
-			c.addAction(new ActionData(ActionType.UPDATE_ENTITY).data("entityId", p.getEntityId()).data("potions",
-					Arrays.asList(potion)));
+			if (c.getTrackedEntities().containsKey(p.getEntityId())) {
+				HashMap<String, Object> potion = new HashMap<>();
+				potion.put("effect", p.getEffect().ordinal() + 1);
+				potion.put("duration", p.getDuration());
+				potion.put("amplifier", p.getAmplifier());
+				potion.put("has-particles", !p.getHideParticles());
+				c.addAction(new ActionData(ActionType.UPDATE_ENTITY).data("entityId", p.getEntityId()).data("potions",
+						Arrays.asList(potion)));
+			}
 		});
 
 		addHandler(ServerBlockChangePacket.class, (p, c) -> {
@@ -188,20 +196,21 @@ public class PacketHandler {
 		addHandler(ServerPlayerListEntryPacket.class, (p, c) -> {
 			if (p.getAction() == PlayerListEntryAction.ADD_PLAYER) {
 				for (PlayerListEntry player : p.getEntries()) {
-					c.getSkinCache().put(player.getProfile().getId(), player.getProfile().getProperty("textures"));
+					c.getProfileCache().put(player.getProfile().getId(), player.getProfile());
 				}
 			} else if (p.getAction() == PlayerListEntryAction.REMOVE_PLAYER) {
 				for (PlayerListEntry player : p.getEntries()) {
-					c.getSkinCache().invalidate(player.getProfile().getId());
+					c.getProfileCache().invalidate(player.getProfile().getId());
 				}
 			}
 		});
 
 		addHandler(ServerSpawnPlayerPacket.class, (p, c) -> {
+			GameProfile profile = c.getProfileCache().getIfPresent(p.getUUID());
 			Location location = new Location(p.getX(), p.getY(), p.getZ(), p.getYaw(), p.getPitch());
 			ActionData action = new ActionData(ActionType.SPAWN_ENTITY).data("type", EntityType.PLAYER)
-					.data("entityId", p.getEntityId()).data("location", location)
-					.data("textures", c.getSkinCache().getIfPresent(p.getUUID()));
+					.data("name", profile.getName()).data("entityId", p.getEntityId()).data("location", location)
+					.data("textures", profile.getProperty("textures"));
 			c.getTrackedEntities().put(p.getEntityId(), new EntityData(p.getEntityId(), EntityType.PLAYER, location));
 			handleMetadata(action, EntityType.PLAYER, p.getMetadata());
 			c.addAction(action);
@@ -254,12 +263,16 @@ public class PacketHandler {
 					.data("entityId", p.getEntityId()).data("location", p.getPosition())
 					.data("attachedFace", BlockFace.valueOf(p.getDirection().name()))
 					.data("art", Art.valueOf(p.getArt().name())));
+			c.getTrackedEntities().put(p.getEntityId(),
+					new EntityData(p.getEntityId(), EntityType.PAINTING, new Location(p.getPosition())));
 		});
 
 		addHandler(ServerEntityMetadataPacket.class, (p, c) -> {
-			ActionData action = new ActionData(ActionType.UPDATE_ENTITY).data("entityId", p.getEntityId());
-			handleMetadata(action, null, p.getMetadata()); // TODO get type
-			c.addAction(action);
+			if (c.getTrackedEntities().containsKey(p.getEntityId())) {
+				ActionData action = new ActionData(ActionType.UPDATE_ENTITY).data("entityId", p.getEntityId());
+				handleMetadata(action, c.getTrackedEntities().get(p.getEntityId()).getType(), p.getMetadata());
+				c.addAction(action);
+			}
 		});
 
 		addHandler(Packet.class, (p, c) -> {
@@ -280,29 +293,28 @@ public class PacketHandler {
 				action.data("sneaking", sneak).data("sprinting", sprint);
 			}
 		}
-
-		if (type.getEntityClass().isAssignableFrom(LivingEntity.class)) {
+		if (LivingEntity.class.isAssignableFrom(type.getEntityClass())) {
 			EntityMetadata nameTagData = Utils.getMetadataById(metadata, 2);
 			if (nameTagData != null) {
-				action.data("name", nameTagData.getValue());
+				action.data("customName", nameTagData.getValue());
 			}
 			EntityMetadata nameVisibleData = Utils.getMetadataById(metadata, 3);
 			if (nameVisibleData != null) {
-				action.data("customNameVisble", nameVisibleData.getValue());
+				action.data("customNameVisble", ((byte) nameVisibleData.getValue()) != 0);
 			}
-			if (type.getEntityClass().isAssignableFrom(Ageable.class)) {
+			if (Ageable.class.isAssignableFrom(type.getEntityClass())) {
 				EntityMetadata ageData = Utils.getMetadataById(metadata, 12);
 				if (ageData != null) {
 					action.data("age", ageData.getValue());
 				}
-				if (type.getEntityClass().isAssignableFrom(Pig.class)) {
+				if (Pig.class.isAssignableFrom(type.getEntityClass())) {
 					EntityMetadata saddleData = Utils.getMetadataById(metadata, 16);
 					if (saddleData != null) {
 						action.data("saddle", ((byte) saddleData.getValue()) != 0);
 
 					}
 				}
-				if (type.getEntityClass().isAssignableFrom(Sheep.class)) {
+				if (Sheep.class.isAssignableFrom(type.getEntityClass())) {
 					EntityMetadata sheepData = Utils.getMetadataById(metadata, 16);
 					if (sheepData != null) {
 						byte sheep = (byte) sheepData.getValue();
@@ -312,17 +324,17 @@ public class PacketHandler {
 						action.data("color", DyeColor.getByData(color)).data("sheared", sheared);
 					}
 				}
-				if (type.getEntityClass().isAssignableFrom(Zombie.class)) {
+				if (Zombie.class.isAssignableFrom(type.getEntityClass())) {
 					EntityMetadata babyData = Utils.getMetadataById(metadata, 12);
 					if (babyData != null) {
 						action.data("baby", ((byte) babyData.getValue()) != 0);
 					}
 				}
-				if (type.getEntityClass().isAssignableFrom(Creeper.class)) {
+				if (Creeper.class.isAssignableFrom(type.getEntityClass())) {
 					EntityMetadata poweredData = Utils.getMetadataById(metadata, 17);
 					action.data("powered", ((byte) poweredData.getValue()) != 0);
 				}
-				if (type.getEntityClass().isAssignableFrom(Slime.class)) {
+				if (Slime.class.isAssignableFrom(type.getEntityClass())) {
 					EntityMetadata sizeData = Utils.getMetadataById(metadata, 16);
 					if (sizeData != null) {
 						action.data("size", sizeData.getValue());

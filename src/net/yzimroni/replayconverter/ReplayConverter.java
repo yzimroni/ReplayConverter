@@ -7,6 +7,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.bukkit.Location;
+import org.spacehq.mc.auth.data.GameProfile;
 import org.spacehq.mc.auth.data.GameProfile.Property;
 
 import com.google.common.cache.Cache;
@@ -29,7 +30,7 @@ public class ReplayConverter {
 
 	private int lastTick;
 
-	private Cache<UUID, Property> skinCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.SECONDS).build();
+	private Cache<UUID, GameProfile> profileCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.SECONDS).build();
 	private HashMap<Integer, EntityData> trackedEntities = new HashMap<>();
 
 	public ReplayConverter(Replay replay, File output) {
@@ -47,9 +48,9 @@ public class ReplayConverter {
 	public void start() {
 		for (PacketData packet : replay) {
 			lastTick = ((int) (packet.getTime() / 50)) + 1;
-			System.out.println(packet.getTime());
+			/*System.out.println(packet.getTime());
 			System.out.println(packet.getPacket().getClass());
-			System.out.println();
+			System.out.println();*/
 			packetHandler.handle(packet.getPacket());
 		}
 		write();
@@ -72,8 +73,8 @@ public class ReplayConverter {
 		}
 	}
 
-	public Cache<UUID, Property> getSkinCache() {
-		return skinCache;
+	public Cache<UUID, GameProfile> getProfileCache() {
+		return profileCache;
 	}
 
 	public HashMap<Integer, EntityData> getTrackedEntities() {
