@@ -4,6 +4,8 @@ import java.io.FileInputStream;
 
 import com.replaymod.replaystudio.replay.Replay;
 
+import net.citizensnpcs.api.CitizensAPI;
+import net.yzimroni.replayconverter.bukkit.Citizens;
 import net.yzimroni.replayconverter.utils.Utils;
 
 public class ReplayConverterMain {
@@ -14,6 +16,7 @@ public class ReplayConverterMain {
 			System.exit(1);
 		}
 
+		CitizensAPI.setImplementation(new Citizens());
 		try {
 			Replay replay = Utils.STUDIO.createReplay(new FileInputStream(args[0]));
 			ReplayConverter converter = new ReplayConverter(replay, null);

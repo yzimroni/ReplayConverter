@@ -1,6 +1,7 @@
 .metadata
 bin/
 tmp/
+export/
 *.tmp
 *.bak
 *.swp
