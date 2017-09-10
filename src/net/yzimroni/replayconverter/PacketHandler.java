@@ -62,6 +62,9 @@ import org.spacehq.opennbt.tag.builtin.ListTag;
 import org.spacehq.opennbt.tag.builtin.Tag;
 import org.spacehq.packetlib.packet.Packet;
 
+import com.google.common.base.Preconditions;
+import com.google.gson.Gson;
+
 import net.yzimroni.bukkitanimations.data.action.ActionData;
 import net.yzimroni.bukkitanimations.data.action.ActionType;
 import net.yzimroni.replayconverter.data.EntityData;
@@ -196,17 +199,19 @@ public class PacketHandler {
 		addHandler(ServerPlayerListEntryPacket.class, (p, c) -> {
 			if (p.getAction() == PlayerListEntryAction.ADD_PLAYER) {
 				for (PlayerListEntry player : p.getEntries()) {
-					c.getProfileCache().put(player.getProfile().getId(), player.getProfile());
+					c.getProfiles().put(player.getProfile().getId(), player.getProfile());
 				}
 			} else if (p.getAction() == PlayerListEntryAction.REMOVE_PLAYER) {
 				for (PlayerListEntry player : p.getEntries()) {
-					c.getProfileCache().invalidate(player.getProfile().getId());
+					c.getProfiles().remove(player.getProfile().getId());
 				}
 			}
 		});
 
 		addHandler(ServerSpawnPlayerPacket.class, (p, c) -> {
-			GameProfile profile = c.getProfileCache().getIfPresent(p.getUUID());
+			GameProfile profile = c.getProfiles().get(p.getUUID());
+			Preconditions.checkNotNull(profile,
+					"Tried to spawn a player but no GameProfile were found to this uuid: " + new Gson().toJson(p));
 			Location location = new Location(p.getX(), p.getY(), p.getZ(), p.getYaw(), p.getPitch());
 			ActionData action = new ActionData(ActionType.SPAWN_ENTITY).data("type", EntityType.PLAYER)
 					.data("name", profile.getName()).data("entityId", p.getEntityId()).data("location", location)

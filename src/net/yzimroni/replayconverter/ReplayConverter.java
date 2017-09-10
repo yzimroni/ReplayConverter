@@ -3,12 +3,9 @@ package net.yzimroni.replayconverter;
 import java.io.File;
 import java.util.HashMap;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 import org.spacehq.mc.auth.data.GameProfile;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import com.replaymod.replaystudio.PacketData;
 import com.replaymod.replaystudio.replay.Replay;
 
@@ -22,8 +19,7 @@ public class ReplayConverter extends Recorder {
 	private File output;
 	private PacketHandler packetHandler;
 
-	private Cache<UUID, GameProfile> profileCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.SECONDS)
-			.build();
+	private HashMap<UUID, GameProfile> profiles = new HashMap<UUID, GameProfile>();
 	private HashMap<Integer, EntityData> trackedEntities = new HashMap<>();
 
 	public ReplayConverter(Replay replay, File output) {
@@ -46,8 +42,8 @@ public class ReplayConverter extends Recorder {
 		writeAnimation(output);
 	}
 
-	public Cache<UUID, GameProfile> getProfileCache() {
-		return profileCache;
+	public HashMap<UUID, GameProfile> getProfiles() {
+		return profiles;
 	}
 
 	public HashMap<Integer, EntityData> getTrackedEntities() {
