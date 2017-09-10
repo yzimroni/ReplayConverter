@@ -3,10 +3,12 @@ package net.yzimroni.replayconverter;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 
 import org.bukkit.Art;
 import org.bukkit.DyeColor;
 import org.bukkit.Material;
+import org.bukkit.SkullType;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Ageable;
 import org.bukkit.entity.Creeper;
@@ -16,6 +18,7 @@ import org.bukkit.entity.Pig;
 import org.bukkit.entity.Sheep;
 import org.bukkit.entity.Slime;
 import org.bukkit.entity.Zombie;
+import org.bukkit.material.MaterialData;
 import org.bukkit.util.Vector;
 import org.spacehq.mc.auth.data.GameProfile;
 import org.spacehq.mc.protocol.data.game.EntityMetadata;
@@ -28,6 +31,8 @@ import org.spacehq.mc.protocol.data.game.values.entity.HangingDirection;
 import org.spacehq.mc.protocol.data.game.values.entity.ProjectileData;
 import org.spacehq.mc.protocol.data.game.values.entity.player.Animation;
 import org.spacehq.mc.protocol.data.game.values.world.block.BlockChangeRecord;
+import org.spacehq.mc.protocol.data.game.values.world.block.UpdatedTileType;
+import org.spacehq.mc.protocol.data.message.Message;
 import org.spacehq.mc.protocol.packet.ingame.server.ServerPlayerListEntryPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerAnimationPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerCollectItemPacket;
@@ -50,6 +55,11 @@ import org.spacehq.mc.protocol.packet.ingame.server.world.ServerBlockChangePacke
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerExplosionPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerMultiBlockChangePacket;
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerSpawnParticlePacket;
+import org.spacehq.mc.protocol.packet.ingame.server.world.ServerUpdateSignPacket;
+import org.spacehq.mc.protocol.packet.ingame.server.world.ServerUpdateTileEntityPacket;
+import org.spacehq.opennbt.tag.builtin.CompoundTag;
+import org.spacehq.opennbt.tag.builtin.ListTag;
+import org.spacehq.opennbt.tag.builtin.Tag;
 import org.spacehq.packetlib.packet.Packet;
 
 import net.yzimroni.bukkitanimations.data.action.ActionData;
@@ -93,8 +103,6 @@ public class PacketHandler {
 		 * ServerMultiChunkDataPacket
 		 * ServerPlayEffectPacket
 		 * ? ServerPlaySoundPacket
-		 * ServerUpdateSignPacket
-		 * ? ServerUpdateTileEntityPacket
 		 * ServerChatPacket
 		 * 
 		 * 
@@ -288,6 +296,57 @@ public class PacketHandler {
 						location));
 				c.getTrackedEntities().get(p.getEntityId()).setLocation(location);
 			}
+		});
+
+		addHandler(ServerUpdateTileEntityPacket.class, (p, c) -> {
+			ActionData action = new ActionData(ActionType.UPDATE_BLOCKSTATE).data("location", p.getPosition());
+			boolean shouldAdd = true;
+			if (p.getType() == UpdatedTileType.MOB_SPAWNER) {
+				action.data("spawnedType",
+						EntityType.valueOf(p.getNBT().get("EntityId").getValue().toString().toUpperCase()));
+			} else if (p.getType() == UpdatedTileType.SKULL) {
+				if (p.getNBT().contains("Rot")) {
+					// TODO get the correct BlockFace value
+				}
+				if (p.getNBT().contains("SkullType")) {
+					action.data("skullType",
+							SkullType.values()[((Number) p.getNBT().get("SkullType").getValue()).intValue()]);
+				}
+				if (p.getNBT().contains("Owner")) {
+					CompoundTag owner = p.getNBT().get("Owner");
+					HashMap<String, Object> profile = new HashMap<String, Object>();
+					profile.put("id", owner.get("Id").getValue());
+					profile.put("name", owner.get("Name").getValue());
+					HashMap<String, Object> textures = new HashMap<String, Object>();
+					ListTag texturesTag = ((CompoundTag) owner.get("Properties")).get("textures");
+					for (Tag t : texturesTag.getValue()) {
+						if (t.getName().equals("Value")) {
+							textures.put("value", t.getValue());
+						}
+						if (t.getName().equals("Signature")) {
+							textures.put("signature", t.getValue());
+						}
+					}
+					profile.put("properties", Arrays.asList(textures));
+					action.data("profile", profile);
+				}
+			} else if (p.getType() == UpdatedTileType.FLOWER_POT) {
+				action.data("contents", new MaterialData((int) p.getNBT().get("Item").getValue(),
+						((Number) p.getNBT().get("Data").getValue()).byteValue()));
+			} else if (p.getType() == UpdatedTileType.BANNER) {
+				// TODO
+			} else {
+				shouldAdd = false;
+			}
+			if (shouldAdd) {
+				c.addAction(action);
+			}
+		});
+
+		addHandler(ServerUpdateSignPacket.class, (p, c) -> {
+			ActionData action = new ActionData(ActionType.UPDATE_BLOCKSTATE).data("location", p.getPosition())
+					.data("lines", Arrays.stream(p.getLines()).map(Message::getFullText).collect(Collectors.toList()));
+			c.addAction(action);
 		});
 
 		addHandler(Packet.class, (p, c) -> {
