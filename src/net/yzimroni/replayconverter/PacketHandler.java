@@ -113,7 +113,7 @@ public class PacketHandler {
 		 */
 		addHandler(ServerBlockBreakAnimPacket.class, (p, c) -> {
 			c.addAction(new ActionData(ActionType.BLOCK_BREAK_ANIMATION).data("entityId", p.getBreakerEntityId())
-					.data("stage", p.getStage().ordinal() + 1).data("location", p.getPosition()));
+					.data("stage", p.getStage().ordinal()).data("location", p.getPosition()));
 		});
 
 		addHandler(ServerSpawnGlobalEntityPacket.class, (p, c) -> {
@@ -191,7 +191,7 @@ public class PacketHandler {
 
 		addHandler(ServerSpawnParticlePacket.class, (p, c) -> {
 			c.addAction(new ActionData(ActionType.PARTICLE).data("location", new Vector(p.getX(), p.getY(), p.getZ()))
-					.data("particleId", p.getParticle().ordinal() + 1).data("longDis", p.isLongDistance())
+					.data("particleId", p.getParticle().ordinal()).data("longDis", p.isLongDistance())
 					.data("offset", new Vector(p.getOffsetX(), p.getOffsetY(), p.getOffsetZ()))
 					.data("data", p.getVelocityOffset()).data("count", p.getAmount()).data("dataArray", p.getData()));
 		});
