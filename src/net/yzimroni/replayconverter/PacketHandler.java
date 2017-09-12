@@ -26,11 +26,14 @@ import org.spacehq.mc.protocol.data.game.Position;
 import org.spacehq.mc.protocol.data.game.values.MagicValues;
 import org.spacehq.mc.protocol.data.game.values.PlayerListEntry;
 import org.spacehq.mc.protocol.data.game.values.PlayerListEntryAction;
+import org.spacehq.mc.protocol.data.game.values.entity.EntityStatus;
 import org.spacehq.mc.protocol.data.game.values.entity.FallingBlockData;
 import org.spacehq.mc.protocol.data.game.values.entity.GlobalEntityType;
 import org.spacehq.mc.protocol.data.game.values.entity.HangingDirection;
 import org.spacehq.mc.protocol.data.game.values.entity.ProjectileData;
 import org.spacehq.mc.protocol.data.game.values.entity.player.Animation;
+import org.spacehq.mc.protocol.data.game.values.world.CustomSound;
+import org.spacehq.mc.protocol.data.game.values.world.GenericSound;
 import org.spacehq.mc.protocol.data.game.values.world.block.BlockChangeRecord;
 import org.spacehq.mc.protocol.data.game.values.world.block.UpdatedTileType;
 import org.spacehq.mc.protocol.data.game.values.world.effect.BreakBlockEffectData;
@@ -46,11 +49,14 @@ import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerAnimationPacket
 import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerCollectItemPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerDestroyEntitiesPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerEntityEffectPacket;
+import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerEntityEquipmentPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerEntityMetadataPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerEntityMovementPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerEntityPositionPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerEntityPositionRotationPacket;
+import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerEntityRemoveEffectPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerEntityRotationPacket;
+import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerEntityStatusPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerEntityTeleportPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.entity.spawn.ServerSpawnExpOrbPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.entity.spawn.ServerSpawnGlobalEntityPacket;
@@ -63,6 +69,7 @@ import org.spacehq.mc.protocol.packet.ingame.server.world.ServerBlockChangePacke
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerExplosionPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerMultiBlockChangePacket;
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerPlayEffectPacket;
+import org.spacehq.mc.protocol.packet.ingame.server.world.ServerPlaySoundPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerSpawnParticlePacket;
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerUpdateSignPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerUpdateTileEntityPacket;
@@ -99,24 +106,14 @@ public class PacketHandler {
 	private static void initHandlers() {
 		/*
 		 * @formatter:off
-		 * TODO ItemStacks saving
 		 * 
-		 * ServerEntityEquipmentPacket
 		 * ? ServerEntityHeadLookPacket
-		 * ServerEntityNBTUpdatePacket
-		 * ? ServerEntityPropertiesPacket
-		 * ServerEntityRemoveEffectPacket
-		 * ? ServerEntityStatusPacket
 		 * ? ServerEntityVelocityPacket
 		 * ? ServerBlockValuePacket
 		 * ServerChunkDataPacket
-		 * 
 		 * ? ServerMapDataPacket
 		 * ServerMultiChunkDataPacket
-		 * 
-		 * ? ServerPlaySoundPacket
 		 * ServerChatPacket
-		 * 
 		 * 
 		 * @formatter:on
 		 */
@@ -219,6 +216,9 @@ public class PacketHandler {
 
 		addHandler(ServerSpawnPlayerPacket.class, (p, c) -> {
 			GameProfile profile = c.getProfiles().get(p.getUUID());
+			if (profile == null) {
+				return;
+			}
 			Preconditions.checkNotNull(profile,
 					"Tried to spawn a player but no GameProfile were found to this uuid: " + new Gson().toJson(p));
 			Location location = new Location(p.getX(), p.getY(), p.getZ(), p.getYaw(), p.getPitch());
@@ -393,6 +393,72 @@ public class PacketHandler {
 			c.addAction(new ActionData(ActionType.WORLD_EFFECT).data("effect", effectId)
 					.data("location", p.getPosition()).data("data", data).data("disableRel", p.getBroadcast()));
 
+		});
+
+		addHandler(ServerEntityEquipmentPacket.class, (p, c) -> {
+			if (c.getTrackedEntities().containsKey(p.getEntityId())) {
+				String equipmentSlotName = "";
+				switch (p.getSlot()) {
+					case 0:
+						equipmentSlotName = "itemInHand";
+						break;
+					case 4:
+						equipmentSlotName = "helmet";
+						break;
+					case 3:
+						equipmentSlotName = "chestplate";
+						break;
+					case 2:
+						equipmentSlotName = "leggings";
+						break;
+					case 1:
+						equipmentSlotName = "boots";
+						break;
+					default:
+						throw new IllegalArgumentException("Unknown EquipmentSlot: " + p.getSlot());
+				}
+				c.addAction(new ActionData(ActionType.UPDATE_ENTITY).data("entityId", p.getEntityId())
+						.data(equipmentSlotName, Utils.serializeItem(p.getItem())));
+			}
+
+		});
+
+		addHandler(ServerEntityRemoveEffectPacket.class, (p, c) -> {
+			if (c.getTrackedEntities().containsKey(p.getEntityId())) {
+				int effectId = ((Integer) MagicValues.value(Integer.class, p.getEffect())).intValue();
+				String effect = Utils.getPotionEffectName(effectId);
+				c.addAction(new ActionData(ActionType.REMOVE_EFFECT).data("entityId", p.getEntityId()).data("effect",
+						effect));
+			}
+		});
+
+		addHandler(ServerEntityStatusPacket.class, (p, c) -> {
+			if (c.getTrackedEntities().containsKey(p.getEntityId())) {
+				ActionData action = new ActionData(null).data("entityId", p.getEntityId());
+				if (p.getStatus() == EntityStatus.LIVING_HURT) {
+					action.setType(ActionType.ENTITY_DAMAGE);
+				} else if (p.getStatus() == EntityStatus.DEAD) {
+					action.setType(ActionType.ENTITY_DEATH);
+				}
+				// TODO handle more entity statuses
+				if (action.getType() != null) {
+					c.addAction(action);
+				}
+			}
+		});
+
+		addHandler(ServerPlaySoundPacket.class, (p, c) -> {
+			Location location = new Location(p.getX(), p.getY(), p.getZ());
+			String sound = "";
+			if (p.getSound() instanceof CustomSound) {
+				sound = ((CustomSound) p.getSound()).getName();
+			} else if (p.getSound() instanceof GenericSound) {
+				sound = (String) MagicValues.value(String.class, (GenericSound) p.getSound());
+			} else {
+				throw new IllegalArgumentException("Unknown sound type: " + p.getSound());
+			}
+			c.addAction(new ActionData(ActionType.SOUND).data("location", location).data("sound", sound)
+					.data("volume", p.getVolume()).data("pitch", p.getPitch()));
 		});
 
 		addHandler(Packet.class, (p, c) -> {

@@ -1,10 +1,14 @@
 package net.yzimroni.replayconverter.utils;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.bukkit.Material;
 import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemStack;
 import org.bukkit.entity.EntityType;
+import org.bukkit.potion.PotionEffectType;
 import org.spacehq.mc.protocol.data.game.EntityMetadata;
 import org.spacehq.mc.protocol.data.game.ItemStack;
 import org.spacehq.mc.protocol.data.game.values.entity.MobType;
@@ -24,12 +28,14 @@ public class Utils {
 	public static final ReplayStudio STUDIO = new ReplayStudio();
 
 	private static final Map<Object, EntityType> ENTITY_TYPE_MAP = new HashMap<Object, EntityType>();
+	private static final Map<Integer, String> POTION_EFFECTS = new HashMap<Integer, String>();
 
 	static {
 		PacketHandler.getHandlers().keySet().forEach(p -> {
 			STUDIO.setParsing(p, true);
 		});
 		initEntityMap();
+		initPotionEffectMap();
 	}
 
 	private Utils() {
@@ -53,6 +59,21 @@ public class Utils {
 		ENTITY_TYPE_MAP.put(MobType.ZOMBIE_PIGMAN, EntityType.PIG_ZOMBIE);
 		ENTITY_TYPE_MAP.put(MobType.GIANT_ZOMBIE, EntityType.GIANT);
 		ENTITY_TYPE_MAP.put(MobType.MOOSHROOM, EntityType.MUSHROOM_COW);
+	}
+
+	@SuppressWarnings("deprecation")
+	private static void initPotionEffectMap() {
+		try {
+			Field[] fields = PotionEffectType.class.getFields();
+			for (Field field : fields) {
+				if (field.getType().equals(PotionEffectType.class) && Modifier.isStatic(field.getModifiers())) {
+					PotionEffectType effect = (PotionEffectType) field.get(null);
+					POTION_EFFECTS.put(effect.getId(), field.getName());
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	public static EntityMetadata getMetadataById(EntityMetadata[] metadataList, int id) {
@@ -81,6 +102,25 @@ public class Utils {
 			}
 		}
 		throw new RuntimeException("Unhandled getEntityType object type: " + raw);
+	}
+
+	@SuppressWarnings("deprecation")
+	public static Map<String, Object> serializeItem(ItemStack item) {
+		Map<String, Object> map = new HashMap<String, Object>();
+		if (item == null) {
+			return map;
+		}
+		map.put("type", Material.getMaterial(item.getId()));
+		map.put("amount", item.getAmount());
+		if (item.getData() != 0) {
+			map.put("damage", item.getData());
+		}
+		// TODO nbt
+		return map;
+	}
+	
+	public static String getPotionEffectName(int id) {
+		return POTION_EFFECTS.get(id);
 	}
 
 	public static org.bukkit.inventory.ItemStack toBukkitItemStack(ItemStack item) {
