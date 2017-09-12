@@ -23,6 +23,7 @@ import org.bukkit.util.Vector;
 import org.spacehq.mc.auth.data.GameProfile;
 import org.spacehq.mc.protocol.data.game.EntityMetadata;
 import org.spacehq.mc.protocol.data.game.Position;
+import org.spacehq.mc.protocol.data.game.values.MagicValues;
 import org.spacehq.mc.protocol.data.game.values.PlayerListEntry;
 import org.spacehq.mc.protocol.data.game.values.PlayerListEntryAction;
 import org.spacehq.mc.protocol.data.game.values.entity.FallingBlockData;
@@ -32,6 +33,13 @@ import org.spacehq.mc.protocol.data.game.values.entity.ProjectileData;
 import org.spacehq.mc.protocol.data.game.values.entity.player.Animation;
 import org.spacehq.mc.protocol.data.game.values.world.block.BlockChangeRecord;
 import org.spacehq.mc.protocol.data.game.values.world.block.UpdatedTileType;
+import org.spacehq.mc.protocol.data.game.values.world.effect.BreakBlockEffectData;
+import org.spacehq.mc.protocol.data.game.values.world.effect.BreakPotionEffectData;
+import org.spacehq.mc.protocol.data.game.values.world.effect.HardLandingEffectData;
+import org.spacehq.mc.protocol.data.game.values.world.effect.ParticleEffect;
+import org.spacehq.mc.protocol.data.game.values.world.effect.RecordEffectData;
+import org.spacehq.mc.protocol.data.game.values.world.effect.SmokeEffectData;
+import org.spacehq.mc.protocol.data.game.values.world.effect.SoundEffect;
 import org.spacehq.mc.protocol.data.message.Message;
 import org.spacehq.mc.protocol.packet.ingame.server.ServerPlayerListEntryPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.entity.ServerAnimationPacket;
@@ -54,6 +62,7 @@ import org.spacehq.mc.protocol.packet.ingame.server.world.ServerBlockBreakAnimPa
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerBlockChangePacket;
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerExplosionPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerMultiBlockChangePacket;
+import org.spacehq.mc.protocol.packet.ingame.server.world.ServerPlayEffectPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerSpawnParticlePacket;
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerUpdateSignPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerUpdateTileEntityPacket;
@@ -104,7 +113,7 @@ public class PacketHandler {
 		 * 
 		 * ? ServerMapDataPacket
 		 * ServerMultiChunkDataPacket
-		 * ServerPlayEffectPacket
+		 * 
 		 * ? ServerPlaySoundPacket
 		 * ServerChatPacket
 		 * 
@@ -267,7 +276,7 @@ public class PacketHandler {
 			c.addAction(new ActionData(ActionType.SPAWN_ENTITY).data("type", EntityType.PAINTING)
 					.data("entityId", p.getEntityId()).data("location", p.getPosition())
 					.data("attachedFace", BlockFace.valueOf(p.getDirection().name()))
-					.data("art", Art.valueOf(p.getArt().name())));
+					.data("art", Art.getByName(p.getArt().name())));
 			c.getTrackedEntities().put(p.getEntityId(),
 					new EntityData(p.getEntityId(), EntityType.PAINTING, new Location(p.getPosition())));
 		});
@@ -307,8 +316,7 @@ public class PacketHandler {
 			ActionData action = new ActionData(ActionType.UPDATE_BLOCKSTATE).data("location", p.getPosition());
 			boolean shouldAdd = true;
 			if (p.getType() == UpdatedTileType.MOB_SPAWNER) {
-				action.data("spawnedType",
-						EntityType.valueOf(p.getNBT().get("EntityId").getValue().toString().toUpperCase()));
+				action.data("spawnedType", Utils.getEntityType(p.getNBT().get("EntityId").getValue().toString()));
 			} else if (p.getType() == UpdatedTileType.SKULL) {
 				if (p.getNBT().contains("Rot")) {
 					// TODO get the correct BlockFace value
@@ -320,8 +328,12 @@ public class PacketHandler {
 				if (p.getNBT().contains("Owner")) {
 					CompoundTag owner = p.getNBT().get("Owner");
 					HashMap<String, Object> profile = new HashMap<String, Object>();
-					profile.put("id", owner.get("Id").getValue());
-					profile.put("name", owner.get("Name").getValue());
+					if (owner.contains("Id")) {
+						profile.put("id", owner.get("Id").getValue());
+					}
+					if (owner.contains("Name")) {
+						profile.put("name", owner.get("Name").getValue());
+					}
 					HashMap<String, Object> textures = new HashMap<String, Object>();
 					ListTag texturesTag = ((CompoundTag) owner.get("Properties")).get("textures");
 					for (Tag t : texturesTag.getValue()) {
@@ -352,6 +364,35 @@ public class PacketHandler {
 			ActionData action = new ActionData(ActionType.UPDATE_BLOCKSTATE).data("location", p.getPosition())
 					.data("lines", Arrays.stream(p.getLines()).map(Message::getFullText).collect(Collectors.toList()));
 			c.addAction(action);
+		});
+
+		addHandler(ServerPlayEffectPacket.class, (p, c) -> {
+			int effectId = 0;
+			if (p.getEffect() instanceof ParticleEffect) {
+				effectId = ((Integer) MagicValues.value(Integer.class, (ParticleEffect) p.getEffect())).intValue();
+			} else if (p.getEffect() instanceof SoundEffect) {
+				effectId = ((Integer) MagicValues.value(Integer.class, (SoundEffect) p.getEffect())).intValue();
+			} else if (p.getEffect() != null) {
+				throw new IllegalArgumentException("Unknown world effect type: " + p.getEffect());
+			}
+
+			int data = 0;
+			if (p.getData() instanceof RecordEffectData) {
+				data = ((RecordEffectData) p.getData()).getRecordId();
+			} else if (p.getData() instanceof SmokeEffectData) {
+				data = ((Integer) MagicValues.value(Integer.class, (SmokeEffectData) p.getData())).intValue();
+			} else if (p.getData() instanceof BreakBlockEffectData) {
+				data = ((BreakBlockEffectData) p.getData()).getBlockId();
+			} else if (p.getData() instanceof BreakPotionEffectData) {
+				data = ((BreakPotionEffectData) p.getData()).getPotionId();
+			} else if (p.getData() instanceof HardLandingEffectData) {
+				data = ((HardLandingEffectData) p.getData()).getDamagingDistance();
+			} else if (p.getData() != null) {
+				throw new IllegalArgumentException("Unknown world effect data type: " + p.getData());
+			}
+			c.addAction(new ActionData(ActionType.WORLD_EFFECT).data("effect", effectId)
+					.data("location", p.getPosition()).data("data", data).data("disableRel", p.getBroadcast()));
+
 		});
 
 		addHandler(Packet.class, (p, c) -> {

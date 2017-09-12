@@ -19,13 +19,33 @@ public class ReplayConverterMain {
 
 		CitizensAPI.setImplementation(new Citizens());
 		try {
-			Replay replay = Utils.STUDIO.createReplay(new FileInputStream(args[0]));
-			ReplayConverter converter = new ReplayConverter(replay, new File(args[1]));
-			converter.convert();
-			converter.save();
+			Replay replay = loadReplay(new File(args[0]));
+			if (replay != null) {
+				ReplayConverter converter = new ReplayConverter(replay, new File(args[1]));
+				converter.convert();
+				converter.save();
+			} else {
+				System.out.println("Replay is null");
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+
+	private static Replay loadReplay(File f) {
+		try {
+			if (Utils.STUDIO
+					.isCompatible(Utils.STUDIO.readReplayMetaData(new FileInputStream(f)).getFileFormatVersion())) {
+				Replay replay = Utils.STUDIO.createReplay(new FileInputStream(f));
+				return replay;
+			} else {
+				System.err.println(f.getAbsolutePath() + " is not supported");
+				return null;
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return null;
 	}
 
 }
