@@ -3,6 +3,7 @@ package net.yzimroni.replayconverter;
 import java.io.File;
 import java.util.HashMap;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.spacehq.mc.auth.data.GameProfile;
 
@@ -21,6 +22,7 @@ public class ReplayConverter extends Recorder {
 
 	private HashMap<UUID, GameProfile> profiles = new HashMap<UUID, GameProfile>();
 	private HashMap<Integer, EntityData> trackedEntities = new HashMap<>();
+	private AtomicInteger schematicNumber = new AtomicInteger(0);
 
 	public ReplayConverter(Replay replay, File output) {
 		super(new AnimationData(replay.getMetaData().getServerName() + replay.getMetaData().getDate(),
@@ -39,7 +41,9 @@ public class ReplayConverter extends Recorder {
 	}
 
 	public void save() {
+		System.out.println("Saving to " + output.getAbsolutePath());
 		writeAnimation(output);
+		System.out.println("Saved!");
 	}
 
 	public HashMap<UUID, GameProfile> getProfiles() {
@@ -50,4 +54,7 @@ public class ReplayConverter extends Recorder {
 		return trackedEntities;
 	}
 
+	public AtomicInteger getSchematicNumber() {
+		return schematicNumber;
+	}
 }

@@ -1,5 +1,6 @@
 package net.yzimroni.replayconverter;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.function.BiConsumer;
@@ -66,8 +67,10 @@ import org.spacehq.mc.protocol.packet.ingame.server.entity.spawn.ServerSpawnPain
 import org.spacehq.mc.protocol.packet.ingame.server.entity.spawn.ServerSpawnPlayerPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerBlockBreakAnimPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerBlockChangePacket;
+import org.spacehq.mc.protocol.packet.ingame.server.world.ServerChunkDataPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerExplosionPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerMultiBlockChangePacket;
+import org.spacehq.mc.protocol.packet.ingame.server.world.ServerMultiChunkDataPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerPlayEffectPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerPlaySoundPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerSpawnParticlePacket;
@@ -84,6 +87,7 @@ import com.google.gson.Gson;
 import net.yzimroni.bukkitanimations.data.action.ActionData;
 import net.yzimroni.bukkitanimations.data.action.ActionType;
 import net.yzimroni.replayconverter.data.EntityData;
+import net.yzimroni.replayconverter.data.FullChunk;
 import net.yzimroni.replayconverter.data.Location;
 import net.yzimroni.replayconverter.utils.Utils;
 
@@ -110,9 +114,7 @@ public class PacketHandler {
 		 * ? ServerEntityHeadLookPacket
 		 * ? ServerEntityVelocityPacket
 		 * ? ServerBlockValuePacket
-		 * ServerChunkDataPacket
 		 * ? ServerMapDataPacket
-		 * ServerMultiChunkDataPacket
 		 * ServerChatPacket
 		 * 
 		 * @formatter:on
@@ -459,6 +461,36 @@ public class PacketHandler {
 			}
 			c.addAction(new ActionData(ActionType.SOUND).data("location", location).data("sound", sound)
 					.data("volume", p.getVolume()).data("pitch", p.getPitch()));
+		});
+
+		addHandler(ServerChunkDataPacket.class, (p, c) -> {
+			FullChunk chunk = new FullChunk(p.getX(), p.getZ(), p.getChunks());
+			if (chunk.isEmpty()) {
+				return;
+			}
+			File schematic = Utils.saveSchematic(chunk);
+			Location location = new Location(p.getX() * 16, 0, p.getZ() * 16);
+			String schematicName = p.getX() + "_" + p.getZ() + "-" + c.getSchematicNumber().incrementAndGet();
+			c.addExtraFile("schematics/" + schematicName + ".schematic", schematic);
+			c.addAction(new ActionData(ActionType.LOAD_SCHEMATIC).data("location", location).data("schematic",
+					schematicName));
+		});
+
+		addHandler(ServerMultiChunkDataPacket.class, (p, c) -> {
+			for (int i = 0; i < p.getColumns(); i++) {
+				int x = p.getX(i);
+				int z = p.getZ(i);
+				FullChunk chunk = new FullChunk(x, z, p.getChunks(i));
+				if (chunk.isEmpty()) {
+					continue;
+				}
+				File schematic = Utils.saveSchematic(chunk);
+				Location location = new Location(x * 16, 0, z * 16);
+				String schematicName = x + "_" + z + "-" + c.getSchematicNumber().incrementAndGet();
+				c.addExtraFile("schematics/" + schematicName + ".schematic", schematic);
+				c.addAction(new ActionData(ActionType.LOAD_SCHEMATIC).data("location", location).data("schematic",
+						schematicName));
+			}
 		});
 
 		addHandler(Packet.class, (p, c) -> {

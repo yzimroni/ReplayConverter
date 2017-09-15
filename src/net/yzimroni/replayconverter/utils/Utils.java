@@ -1,5 +1,6 @@
 package net.yzimroni.replayconverter.utils;
 
+import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
@@ -18,11 +19,14 @@ import org.spacehq.netty.buffer.Unpooled;
 import org.spacehq.packetlib.tcp.io.ByteBufNetOutput;
 
 import com.replaymod.replaystudio.studio.ReplayStudio;
+import com.sk89q.worldedit.CuboidClipboard;
+import com.sk89q.worldedit.schematic.SchematicFormat;
 
 import io.netty.buffer.ByteBuf;
 import net.minecraft.server.v1_8_R3.PacketDataSerializer;
 import net.yzimroni.replayconverter.PacketHandler;
 
+@SuppressWarnings("deprecation")
 public class Utils {
 
 	public static final ReplayStudio STUDIO = new ReplayStudio();
@@ -61,7 +65,6 @@ public class Utils {
 		ENTITY_TYPE_MAP.put(MobType.MOOSHROOM, EntityType.MUSHROOM_COW);
 	}
 
-	@SuppressWarnings("deprecation")
 	private static void initPotionEffectMap() {
 		try {
 			Field[] fields = PotionEffectType.class.getFields();
@@ -85,7 +88,6 @@ public class Utils {
 		return null;
 	}
 
-	@SuppressWarnings("deprecation")
 	public static EntityType getEntityType(Object raw) {
 		if (ENTITY_TYPE_MAP.containsKey(raw)) {
 			return ENTITY_TYPE_MAP.get(raw);
@@ -104,7 +106,6 @@ public class Utils {
 		throw new RuntimeException("Unhandled getEntityType object type: " + raw);
 	}
 
-	@SuppressWarnings("deprecation")
 	public static Map<String, Object> serializeItem(ItemStack item) {
 		Map<String, Object> map = new HashMap<String, Object>();
 		if (item == null) {
@@ -118,9 +119,23 @@ public class Utils {
 		// TODO nbt
 		return map;
 	}
-	
+
 	public static String getPotionEffectName(int id) {
 		return POTION_EFFECTS.get(id);
+	}
+
+	public static File saveSchematic(CuboidClipboard clipboard) {
+		File tempFolder = new File("export/temp");
+		tempFolder.mkdirs();
+		try {
+			File schematicFile = File.createTempFile("animation", ".schematic", tempFolder);
+			schematicFile.deleteOnExit();
+			SchematicFormat.MCEDIT.save(clipboard, schematicFile);
+			return schematicFile;
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return null;
 	}
 
 	public static org.bukkit.inventory.ItemStack toBukkitItemStack(ItemStack item) {
