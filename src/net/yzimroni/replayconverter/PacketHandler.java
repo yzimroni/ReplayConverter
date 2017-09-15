@@ -3,6 +3,8 @@ package net.yzimroni.replayconverter;
 import java.io.File;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
@@ -12,6 +14,7 @@ import org.bukkit.Material;
 import org.bukkit.SkullType;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Ageable;
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Creeper;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
@@ -24,6 +27,7 @@ import org.bukkit.util.Vector;
 import org.spacehq.mc.auth.data.GameProfile;
 import org.spacehq.mc.protocol.data.game.EntityMetadata;
 import org.spacehq.mc.protocol.data.game.Position;
+import org.spacehq.mc.protocol.data.game.Rotation;
 import org.spacehq.mc.protocol.data.game.values.MagicValues;
 import org.spacehq.mc.protocol.data.game.values.PlayerListEntry;
 import org.spacehq.mc.protocol.data.game.values.PlayerListEntryAction;
@@ -82,6 +86,7 @@ import org.spacehq.opennbt.tag.builtin.Tag;
 import org.spacehq.packetlib.packet.Packet;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 
 import net.yzimroni.bukkitanimations.data.action.ActionData;
@@ -503,7 +508,8 @@ public class PacketHandler {
 		if (b_ != null) {
 			byte b = (byte) b_.getValue();
 			boolean onFire = (b & 1 << 1) != 0;
-			action.data("fireTicks", onFire ? Integer.MAX_VALUE : 0);
+			boolean invisible = (b & 1 << 5) != 0;
+			action.data("fireTicks", onFire ? Integer.MAX_VALUE : 0).data("visible", !invisible);
 			if (type == EntityType.PLAYER) {
 				boolean sneak = (b & 1 << 2) != 0;
 				boolean sprint = (b & 1 << 3) != 0;
@@ -558,10 +564,34 @@ public class PacketHandler {
 					}
 				}
 			}
+			if (ArmorStand.class.isAssignableFrom(type.getEntityClass())) {
+				EntityMetadata bitMaskData = Utils.getMetadataById(metadata, 10);
+				if (bitMaskData != null) {
+					byte b = (byte) bitMaskData.getValue();
+					boolean small = (b & 1) != 0;
+					boolean gravity = (b & 2) != 0;
+					boolean arms = (b & 4) != 0;
+					boolean basePlate = (b & 8) != 0;
+					boolean marker = (b & 16) != 0;
+					action.data("small", small).data("gravity", !gravity).data("arms", arms)
+							.data("basePlate", basePlate).data("marker", marker);
+				}
+				Map<Integer, String> poses = ImmutableMap.<Integer, String>builder().put(11, "headPose")
+						.put(12, "bodyPose").put(13, "leftArmPose").put(14, "rightArmPose").put(15, "leftLegPose")
+						.put(16, "rightLegPose").build();
+				for (Entry<Integer, String> pose : poses.entrySet()) {
+					EntityMetadata poseData = Utils.getMetadataById(metadata, pose.getKey());
+					if (poseData != null) {
+						Rotation rot = (Rotation) poseData.getValue();
+						Map<String, Float> serialize = ImmutableMap.<String, Float>builder().put("x", rot.getPitch())
+								.put("y", rot.getYaw()).put("z", rot.getRoll()).build();
+						action.data(pose.getValue(), serialize);
+					}
+				}
+			}
 			/*
 			 * @formatter:off
 			 * TODO
-			 * armor stand
 			 * horse
 			 * Ocelot
 			 * Tameable
