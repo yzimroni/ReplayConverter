@@ -3,12 +3,9 @@ package net.yzimroni.replayconverter.convert;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import org.spacehq.mc.auth.data.GameProfile;
 import org.spacehq.mc.protocol.packet.ingame.server.ServerRespawnPacket;
 import org.spacehq.packetlib.packet.Packet;
 
@@ -19,7 +16,6 @@ import com.replaymod.replaystudio.replay.Replay;
 
 import net.yzimroni.bukkitanimations.animation.AnimationData;
 import net.yzimroni.bukkitanimations.record.Recorder;
-import net.yzimroni.replayconverter.data.EntityData;
 import net.yzimroni.replayconverter.utils.Utils;
 
 public class ReplayConverter extends Recorder {
@@ -38,9 +34,7 @@ public class ReplayConverter extends Recorder {
 	private boolean recordingPackets;
 	private int startedAt;
 
-	private HashMap<UUID, GameProfile> profiles = new HashMap<UUID, GameProfile>();
-	private HashMap<Integer, EntityData> trackedEntities = new HashMap<>();
-	private AtomicInteger schematicNumber = new AtomicInteger(0);
+	private ConverterTracker tracker;
 
 	private List<Packet> handlingQueue = new ArrayList<Packet>();
 
@@ -50,6 +44,7 @@ public class ReplayConverter extends Recorder {
 		this.replay = replay;
 		this.output = output;
 
+		this.tracker = new ConverterTracker(this);
 		this.packetHandler = new PacketHandler(this);
 	}
 
@@ -142,18 +137,6 @@ public class ReplayConverter extends Recorder {
 		return -1;
 	}
 
-	public HashMap<UUID, GameProfile> getProfiles() {
-		return profiles;
-	}
-
-	public HashMap<Integer, EntityData> getTrackedEntities() {
-		return trackedEntities;
-	}
-
-	public AtomicInteger getSchematicNumber() {
-		return schematicNumber;
-	}
-
 	public int getStartAt() {
 		return startAt;
 	}
@@ -176,6 +159,10 @@ public class ReplayConverter extends Recorder {
 
 	public void setRecordingPackets(boolean recordingPackets) {
 		this.recordingPackets = recordingPackets;
+	}
+
+	public ConverterTracker getTracker() {
+		return tracker;
 	}
 
 }

@@ -149,8 +149,8 @@ public class PacketHandler {
 		});
 
 		addHandler(ServerCollectItemPacket.class, (p, c) -> {
-			if (c.getTrackedEntities().containsKey(p.getCollectedEntityId())
-					&& c.getTrackedEntities().containsKey(p.getCollectorEntityId())) {
+			if (c.getTracker().getTrackedEntities().containsKey(p.getCollectedEntityId())
+					&& c.getTracker().getTrackedEntities().containsKey(p.getCollectorEntityId())) {
 				c.addAction(new ActionData(ActionType.ENTITY_PICKUP).data("entityId", p.getCollectedEntityId())
 						.data("playerId", p.getCollectorEntityId()));
 			}
@@ -158,15 +158,15 @@ public class PacketHandler {
 
 		addHandler(ServerDestroyEntitiesPacket.class, (p, c) -> {
 			for (int entityId : p.getEntityIds()) {
-				if (c.getTrackedEntities().containsKey(entityId)) {
+				if (c.getTracker().getTrackedEntities().containsKey(entityId)) {
 					c.addAction(new ActionData(ActionType.DESPAWN_ENTITY).data("entityId", entityId));
-					c.getTrackedEntities().remove(entityId);
+					c.getTracker().getTrackedEntities().remove(entityId);
 				}
 			}
 		});
 
 		addHandler(ServerEntityEffectPacket.class, (p, c) -> {
-			if (c.getTrackedEntities().containsKey(p.getEntityId())) {
+			if (c.getTracker().getTrackedEntities().containsKey(p.getEntityId())) {
 				HashMap<String, Object> potion = new HashMap<>();
 				potion.put("effect", p.getEffect().ordinal() + 1);
 				potion.put("duration", p.getDuration());
@@ -213,17 +213,17 @@ public class PacketHandler {
 		addHandler(ServerPlayerListEntryPacket.class, (p, c) -> {
 			if (p.getAction() == PlayerListEntryAction.ADD_PLAYER) {
 				for (PlayerListEntry player : p.getEntries()) {
-					c.getProfiles().put(player.getProfile().getId(), player.getProfile());
+					c.getTracker().getProfiles().put(player.getProfile().getId(), player.getProfile());
 				}
 			} else if (p.getAction() == PlayerListEntryAction.REMOVE_PLAYER) {
 				for (PlayerListEntry player : p.getEntries()) {
-					c.getProfiles().remove(player.getProfile().getId());
+					c.getTracker().getProfiles().remove(player.getProfile().getId());
 				}
 			}
 		});
 
 		addHandler(ServerSpawnPlayerPacket.class, (p, c) -> {
-			GameProfile profile = c.getProfiles().get(p.getUUID());
+			GameProfile profile = c.getTracker().getProfiles().get(p.getUUID());
 			if (profile == null) {
 				return;
 			}
@@ -234,7 +234,8 @@ public class PacketHandler {
 			ActionData action = new ActionData(ActionType.SPAWN_ENTITY).data("type", EntityType.PLAYER)
 					.data("name", profile.getName()).data("entityId", p.getEntityId()).data("location", location)
 					.data("textures", profile.getProperty("textures"));
-			c.getTrackedEntities().put(p.getEntityId(), new EntityData(p.getEntityId(), EntityType.PLAYER, location));
+			c.getTracker().getTrackedEntities().put(p.getEntityId(),
+					new EntityData(p.getEntityId(), EntityType.PLAYER, location));
 			handleMetadata(action, EntityType.PLAYER, p.getMetadata());
 			c.addAction(action);
 		});
@@ -245,7 +246,7 @@ public class PacketHandler {
 			ActionData action = new ActionData(ActionType.SPAWN_ENTITY).data("type", type)
 					.data("entityId", p.getEntityId()).data("location", location)
 					.data("velocity", new Vector(p.getMotionX(), p.getMotionY(), p.getMotionZ()));
-			c.getTrackedEntities().put(p.getEntityId(), new EntityData(p.getEntityId(), type, location));
+			c.getTracker().getTrackedEntities().put(p.getEntityId(), new EntityData(p.getEntityId(), type, location));
 
 			// TODO head yaw
 			handleMetadata(action, type, p.getMetadata());
@@ -256,7 +257,7 @@ public class PacketHandler {
 			Location location = new Location(p.getX(), p.getY(), p.getZ());
 			c.addAction(new ActionData(ActionType.SPAWN_ENTITY).data("type", EntityType.EXPERIENCE_ORB)
 					.data("entityId", p.getEntityId()).data("location", location));
-			c.getTrackedEntities().put(p.getEntityId(),
+			c.getTracker().getTrackedEntities().put(p.getEntityId(),
 					new EntityData(p.getEntityId(), EntityType.EXPERIENCE_ORB, location));
 		});
 
@@ -276,7 +277,7 @@ public class PacketHandler {
 				action.data("attachedFace", BlockFace.valueOf(((HangingDirection) p.getData()).name()));
 			}
 			// TODO the rest of the data types
-			c.getTrackedEntities().put(p.getEntityId(), new EntityData(p.getEntityId(), type, location));
+			c.getTracker().getTrackedEntities().put(p.getEntityId(), new EntityData(p.getEntityId(), type, location));
 
 			c.addAction(action);
 		});
@@ -286,38 +287,39 @@ public class PacketHandler {
 					.data("entityId", p.getEntityId()).data("location", p.getPosition())
 					.data("attachedFace", BlockFace.valueOf(p.getDirection().name()))
 					.data("art", Art.getByName(p.getArt().name())));
-			c.getTrackedEntities().put(p.getEntityId(),
+			c.getTracker().getTrackedEntities().put(p.getEntityId(),
 					new EntityData(p.getEntityId(), EntityType.PAINTING, new Location(p.getPosition())));
 		});
 
 		addHandler(ServerEntityMetadataPacket.class, (p, c) -> {
-			if (c.getTrackedEntities().containsKey(p.getEntityId())) {
+			if (c.getTracker().getTrackedEntities().containsKey(p.getEntityId())) {
 				ActionData action = new ActionData(ActionType.UPDATE_ENTITY).data("entityId", p.getEntityId());
-				handleMetadata(action, c.getTrackedEntities().get(p.getEntityId()).getType(), p.getMetadata());
+				handleMetadata(action, c.getTracker().getTrackedEntities().get(p.getEntityId()).getType(),
+						p.getMetadata());
 				c.addAction(action);
 			}
 		});
 
 		addMultipleHandlers((p, c) -> {
-			if (c.getTrackedEntities().containsKey(p.getEntityId())) {
-				Location location = c.getTrackedEntities().get(p.getEntityId()).getLocation();
+			if (c.getTracker().getTrackedEntities().containsKey(p.getEntityId())) {
+				Location location = c.getTracker().getTrackedEntities().get(p.getEntityId()).getLocation();
 				location = location.add(p.getMovementX(), p.getMovementY(), p.getMovementZ());
 				if (p instanceof ServerEntityPositionRotationPacket || p instanceof ServerEntityRotationPacket) {
 					location = location.changeLook(p.getYaw(), p.getPitch());
 				}
 				c.addAction(new ActionData(ActionType.ENTITY_MOVE).data("entityId", p.getEntityId()).data("location",
 						location));
-				c.getTrackedEntities().get(p.getEntityId()).setLocation(location);
+				c.getTracker().getTrackedEntities().get(p.getEntityId()).setLocation(location);
 			}
 		}, ServerEntityMovementPacket.class, ServerEntityPositionPacket.class, ServerEntityPositionRotationPacket.class,
 				ServerEntityRotationPacket.class);
 
 		addHandler(ServerEntityTeleportPacket.class, (p, c) -> {
-			if (c.getTrackedEntities().containsKey(p.getEntityId())) {
+			if (c.getTracker().getTrackedEntities().containsKey(p.getEntityId())) {
 				Location location = new Location(p.getX(), p.getY(), p.getZ(), p.getYaw(), p.getPitch());
 				c.addAction(new ActionData(ActionType.ENTITY_MOVE).data("entityId", p.getEntityId()).data("location",
 						location));
-				c.getTrackedEntities().get(p.getEntityId()).setLocation(location);
+				c.getTracker().getTrackedEntities().get(p.getEntityId()).setLocation(location);
 			}
 		});
 
@@ -413,7 +415,7 @@ public class PacketHandler {
 		});
 
 		addHandler(ServerEntityEquipmentPacket.class, (p, c) -> {
-			if (c.getTrackedEntities().containsKey(p.getEntityId())) {
+			if (c.getTracker().getTrackedEntities().containsKey(p.getEntityId())) {
 				String equipmentSlotName = "";
 				switch (p.getSlot()) {
 					case 0:
@@ -441,7 +443,7 @@ public class PacketHandler {
 		});
 
 		addHandler(ServerEntityRemoveEffectPacket.class, (p, c) -> {
-			if (c.getTrackedEntities().containsKey(p.getEntityId())) {
+			if (c.getTracker().getTrackedEntities().containsKey(p.getEntityId())) {
 				int effectId = ((Integer) MagicValues.value(Integer.class, p.getEffect())).intValue();
 				String effect = Utils.getPotionEffectName(effectId);
 				c.addAction(new ActionData(ActionType.REMOVE_EFFECT).data("entityId", p.getEntityId()).data("effect",
@@ -450,7 +452,7 @@ public class PacketHandler {
 		});
 
 		addHandler(ServerEntityStatusPacket.class, (p, c) -> {
-			if (c.getTrackedEntities().containsKey(p.getEntityId())) {
+			if (c.getTracker().getTrackedEntities().containsKey(p.getEntityId())) {
 				ActionData action = new ActionData(null).data("entityId", p.getEntityId());
 				if (p.getStatus() == EntityStatus.LIVING_HURT) {
 					action.setType(ActionType.ENTITY_DAMAGE);
@@ -485,7 +487,8 @@ public class PacketHandler {
 			}
 			File schematic = Utils.saveSchematic(chunk);
 			Location location = new Location(p.getX() * 16, chunk.getStartY(), p.getZ() * 16);
-			String schematicName = p.getX() + "_" + p.getZ() + "-" + c.getSchematicNumber().incrementAndGet();
+			String schematicName = p.getX() + "_" + p.getZ() + "-"
+					+ c.getTracker().getSchematicNumber().incrementAndGet();
 			c.addExtraFile("schematics/" + schematicName + ".schematic", schematic);
 			c.addAction(new ActionData(ActionType.LOAD_SCHEMATIC).data("location", location).data("schematic",
 					schematicName));
@@ -501,7 +504,7 @@ public class PacketHandler {
 				}
 				File schematic = Utils.saveSchematic(chunk);
 				Location location = new Location(x * 16, chunk.getStartY(), z * 16);
-				String schematicName = x + "_" + z + "-" + c.getSchematicNumber().incrementAndGet();
+				String schematicName = x + "_" + z + "-" + c.getTracker().getSchematicNumber().incrementAndGet();
 				c.addExtraFile("schematics/" + schematicName + ".schematic", schematic);
 				c.addAction(new ActionData(ActionType.LOAD_SCHEMATIC).data("location", location).data("schematic",
 						schematicName));
