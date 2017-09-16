@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.bukkit.Material;
+import org.bukkit.block.BlockFace;
 import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemStack;
 import org.bukkit.entity.EntityType;
 import org.bukkit.potion.PotionEffectType;
@@ -23,6 +24,8 @@ import org.spacehq.netty.buffer.Unpooled;
 import org.spacehq.packetlib.packet.Packet;
 import org.spacehq.packetlib.tcp.io.ByteBufNetOutput;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import com.replaymod.replaystudio.studio.ReplayStudio;
 import com.sk89q.worldedit.CuboidClipboard;
 import com.sk89q.worldedit.schematic.SchematicFormat;
@@ -40,6 +43,7 @@ public class Utils {
 	private static final Map<Integer, String> POTION_EFFECTS = new HashMap<Integer, String>();
 	public static final List<Class<? extends Packet>> SHOULD_SAVE_BEFORE_RECORDING = Arrays
 			.asList(ServerPlayerListEntryPacket.class);
+	private static final Map<Byte, BlockFace> ROTATION_TO_BLOCKFACE = Maps.newHashMap();
 
 	static {
 		PacketHandler.getHandlers().keySet().forEach(p -> {
@@ -54,6 +58,7 @@ public class Utils {
 		}
 		initEntityMap();
 		initPotionEffectMap();
+		initRotationToBlockFaceMap();
 	}
 
 	private Utils() {
@@ -91,6 +96,27 @@ public class Utils {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+	
+	private static void initRotationToBlockFaceMap() {
+		ROTATION_TO_BLOCKFACE.put((byte) 0, BlockFace.SOUTH);
+		ROTATION_TO_BLOCKFACE.put((byte) 1, BlockFace.SOUTH_SOUTH_WEST);
+		ROTATION_TO_BLOCKFACE.put((byte) 2, BlockFace.SOUTH_WEST);
+		ROTATION_TO_BLOCKFACE.put((byte) 3, BlockFace.WEST_SOUTH_WEST);
+		ROTATION_TO_BLOCKFACE.put((byte) 4, BlockFace.WEST);
+		ROTATION_TO_BLOCKFACE.put((byte) 5, BlockFace.WEST_NORTH_WEST);
+		ROTATION_TO_BLOCKFACE.put((byte) 6, BlockFace.NORTH_WEST);
+		ROTATION_TO_BLOCKFACE.put((byte) 7, BlockFace.NORTH_NORTH_WEST);
+		ROTATION_TO_BLOCKFACE.put((byte) 8, BlockFace.NORTH);
+		ROTATION_TO_BLOCKFACE.put((byte) 9, BlockFace.NORTH_NORTH_EAST);
+		ROTATION_TO_BLOCKFACE.put((byte) 10, BlockFace.NORTH_EAST);
+		ROTATION_TO_BLOCKFACE.put((byte) 11, BlockFace.EAST_NORTH_EAST);
+		ROTATION_TO_BLOCKFACE.put((byte) 12, BlockFace.EAST);
+		ROTATION_TO_BLOCKFACE.put((byte) 13, BlockFace.EAST_SOUTH_EAST);
+		ROTATION_TO_BLOCKFACE.put((byte) 14, BlockFace.SOUTH_EAST);
+		ROTATION_TO_BLOCKFACE.put((byte) 15, BlockFace.SOUTH_SOUTH_EAST);
+
+
 	}
 
 	public static EntityMetadata getMetadataById(EntityMetadata[] metadataList, int id) {
@@ -150,6 +176,11 @@ public class Utils {
 			e.printStackTrace();
 		}
 		return null;
+	}
+	
+	public static BlockFace getBlockFace(byte rotation) {
+		Preconditions.checkArgument(ROTATION_TO_BLOCKFACE.containsKey(rotation), "Unknown rotation value: " + rotation);
+		return ROTATION_TO_BLOCKFACE.get(rotation);
 	}
 
 	public static org.bukkit.inventory.ItemStack toBukkitItemStack(ItemStack item) {

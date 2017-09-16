@@ -34,6 +34,7 @@ public class FullChunk extends CuboidClipboard {
 	}
 
 	public BaseBlock getBlock(int x, int y, int z) {
+		y += getStartY();
 		int chunkIndex = y / 16;
 		Chunk colum = columns[chunkIndex];
 		if (colum == null) {
@@ -55,6 +56,41 @@ public class FullChunk extends CuboidClipboard {
 		return getBlock(position.getBlockX(), position.getBlockY(), position.getBlockZ());
 	}
 
+	public int getStartY() {
+		int count = 0;
+		for (Chunk column : columns) {
+			if (column == null) {
+				count++;
+			} else {
+				break;
+			}
+		}
+		return count * 16;
+	}
+
+	@Override
+	public int getHeight() {
+		int startFrom = 0;
+		for (int i = 0; i < columns.length; i++) {
+			if (columns[i] != null) {
+				startFrom = i;
+				break;
+			}
+		}
+		int endAt = columns.length;
+		for (int i = startFrom; i < columns.length; i++) {
+			if (columns[i] == null) {
+				endAt = i;
+				break;
+			}
+		}
+		return (endAt - startFrom) * 16;
+	}
+
+	public Vector getChunkSize() {
+		return new Vector(16, 16 * columns.length, 16);
+	}
+
 	public int getX() {
 		return x;
 	}
@@ -65,10 +101,6 @@ public class FullChunk extends CuboidClipboard {
 
 	public Chunk[] getColumns() {
 		return columns;
-	}
-
-	public Vector getChunkSize() {
-		return new Vector(16, 16 * columns.length, 16);
 	}
 
 }

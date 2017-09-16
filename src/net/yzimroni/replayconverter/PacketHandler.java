@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 
 import org.bukkit.Art;
 import org.bukkit.DyeColor;
+import org.bukkit.Effect;
 import org.bukkit.Material;
 import org.bukkit.SkullType;
 import org.bukkit.block.BlockFace;
@@ -87,9 +88,7 @@ import org.spacehq.opennbt.tag.builtin.ListTag;
 import org.spacehq.opennbt.tag.builtin.Tag;
 import org.spacehq.packetlib.packet.Packet;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
-import com.google.gson.Gson;
 
 import net.yzimroni.bukkitanimations.data.action.ActionData;
 import net.yzimroni.bukkitanimations.data.action.ActionType;
@@ -228,8 +227,9 @@ public class PacketHandler {
 			if (profile == null) {
 				return;
 			}
-			Preconditions.checkNotNull(profile,
-					"Tried to spawn a player but no GameProfile were found to this uuid: " + new Gson().toJson(p));
+			// Preconditions.checkNotNull(profile,
+			// "Tried to spawn a player but no GameProfile were found to this uuid: " + new
+			// Gson().toJson(p));
 			Location location = new Location(p.getX(), p.getY(), p.getZ(), p.getYaw(), p.getPitch());
 			ActionData action = new ActionData(ActionType.SPAWN_ENTITY).data("type", EntityType.PLAYER)
 					.data("name", profile.getName()).data("entityId", p.getEntityId()).data("location", location)
@@ -328,7 +328,7 @@ public class PacketHandler {
 				action.data("spawnedType", Utils.getEntityType(p.getNBT().get("EntityId").getValue().toString()));
 			} else if (p.getType() == UpdatedTileType.SKULL) {
 				if (p.getNBT().contains("Rot")) {
-					// TODO get the correct BlockFace value
+					action.data("rotation", Utils.getBlockFace((byte) p.getNBT().get("Rot").getValue()));
 				}
 				if (p.getNBT().contains("SkullType")) {
 					action.data("skullType",
@@ -345,7 +345,8 @@ public class PacketHandler {
 					}
 					HashMap<String, Object> textures = new HashMap<String, Object>();
 					ListTag texturesTag = ((CompoundTag) owner.get("Properties")).get("textures");
-					for (Tag t : texturesTag.getValue()) {
+					CompoundTag texturesCompound = texturesTag.get(0);
+					for (Tag t : texturesCompound.values()) {
 						if (t.getName().equals("Value")) {
 							textures.put("value", t.getValue());
 						}
@@ -384,6 +385,12 @@ public class PacketHandler {
 			} else if (p.getEffect() != null) {
 				throw new IllegalArgumentException("Unknown world effect type: " + p.getEffect());
 			}
+			String effectName = effectId + "";
+			Effect effect = Effect.getById(effectId);
+			if (effect != null) {
+				effectName = effect.name();
+			}
+
 			// TODO fix it, use the effect name?
 
 			int data = 0;
@@ -400,7 +407,7 @@ public class PacketHandler {
 			} else if (p.getData() != null) {
 				throw new IllegalArgumentException("Unknown world effect data type: " + p.getData());
 			}
-			c.addAction(new ActionData(ActionType.WORLD_EFFECT).data("effect", effectId)
+			c.addAction(new ActionData(ActionType.WORLD_EFFECT).data("effect", effectName)
 					.data("location", p.getPosition()).data("data", data).data("disableRel", p.getBroadcast()));
 
 		});
@@ -477,7 +484,7 @@ public class PacketHandler {
 				return;
 			}
 			File schematic = Utils.saveSchematic(chunk);
-			Location location = new Location(p.getX() * 16, 0, p.getZ() * 16);
+			Location location = new Location(p.getX() * 16, chunk.getStartY(), p.getZ() * 16);
 			String schematicName = p.getX() + "_" + p.getZ() + "-" + c.getSchematicNumber().incrementAndGet();
 			c.addExtraFile("schematics/" + schematicName + ".schematic", schematic);
 			c.addAction(new ActionData(ActionType.LOAD_SCHEMATIC).data("location", location).data("schematic",
@@ -493,7 +500,7 @@ public class PacketHandler {
 					continue;
 				}
 				File schematic = Utils.saveSchematic(chunk);
-				Location location = new Location(x * 16, 0, z * 16);
+				Location location = new Location(x * 16, chunk.getStartY(), z * 16);
 				String schematicName = x + "_" + z + "-" + c.getSchematicNumber().incrementAndGet();
 				c.addExtraFile("schematics/" + schematicName + ".schematic", schematic);
 				c.addAction(new ActionData(ActionType.LOAD_SCHEMATIC).data("location", location).data("schematic",
@@ -511,7 +518,9 @@ public class PacketHandler {
 		if (b_ != null) {
 			byte b = (byte) b_.getValue();
 			boolean onFire = (b & 1 << 1) != 0;
+			boolean usingItem = (b & 1 << 4) != 0;
 			boolean invisible = (b & 1 << 5) != 0;
+
 			action.data("fireTicks", onFire ? Integer.MAX_VALUE : 0).data("visible", !invisible);
 			if (type == EntityType.PLAYER) {
 				boolean sneak = (b & 1 << 2) != 0;
