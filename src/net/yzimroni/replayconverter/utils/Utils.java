@@ -19,6 +19,7 @@ import org.spacehq.mc.protocol.data.game.values.entity.MobType;
 import org.spacehq.mc.protocol.data.game.values.entity.ObjectType;
 import org.spacehq.mc.protocol.packet.ingame.server.ServerPlayerListEntryPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.ServerRespawnPacket;
+import org.spacehq.mc.protocol.packet.ingame.server.scoreboard.ServerTeamPacket;
 import org.spacehq.mc.protocol.util.NetUtil;
 import org.spacehq.netty.buffer.Unpooled;
 import org.spacehq.packetlib.packet.Packet;
@@ -42,7 +43,7 @@ public class Utils {
 	private static final Map<Object, EntityType> ENTITY_TYPE_MAP = new HashMap<Object, EntityType>();
 	private static final Map<Integer, String> POTION_EFFECTS = new HashMap<Integer, String>();
 	public static final List<Class<? extends Packet>> SHOULD_SAVE_BEFORE_RECORDING = Arrays
-			.asList(ServerPlayerListEntryPacket.class);
+			.asList(ServerPlayerListEntryPacket.class, ServerTeamPacket.class);
 	private static final Map<Byte, BlockFace> ROTATION_TO_BLOCKFACE = Maps.newHashMap();
 
 	static {

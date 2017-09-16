@@ -15,6 +15,8 @@ import com.replaymod.replaystudio.data.Marker;
 import com.replaymod.replaystudio.replay.Replay;
 
 import net.yzimroni.bukkitanimations.animation.AnimationData;
+import net.yzimroni.bukkitanimations.data.action.ActionData;
+import net.yzimroni.bukkitanimations.data.action.ActionType;
 import net.yzimroni.bukkitanimations.record.Recorder;
 import net.yzimroni.replayconverter.utils.Utils;
 
@@ -109,6 +111,18 @@ public class ReplayConverter extends Recorder {
 			startedAt = getPacketTime(packet);
 		}
 		return true;
+	}
+
+	public void updateEntityName(int entityId, String displayName) {
+		if (recordingPackets && getTracker().getTrackedEntities().containsKey(entityId)) {
+			ActionData action = new ActionData(ActionType.UPDATE_ENTITY).data("entityId", entityId);
+			if (displayName == null) {
+				action.data("customNameVisble", false);
+			} else {
+				action.data("customNameVisble", true).data("customName", displayName);
+			}
+			addAction(action);
+		}
 	}
 
 	public void save() {

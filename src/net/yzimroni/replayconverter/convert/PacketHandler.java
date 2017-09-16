@@ -40,6 +40,7 @@ import org.spacehq.mc.protocol.data.game.values.entity.GlobalEntityType;
 import org.spacehq.mc.protocol.data.game.values.entity.HangingDirection;
 import org.spacehq.mc.protocol.data.game.values.entity.ProjectileData;
 import org.spacehq.mc.protocol.data.game.values.entity.player.Animation;
+import org.spacehq.mc.protocol.data.game.values.scoreboard.TeamAction;
 import org.spacehq.mc.protocol.data.game.values.world.CustomSound;
 import org.spacehq.mc.protocol.data.game.values.world.GenericSound;
 import org.spacehq.mc.protocol.data.game.values.world.block.BlockChangeRecord;
@@ -72,6 +73,7 @@ import org.spacehq.mc.protocol.packet.ingame.server.entity.spawn.ServerSpawnMobP
 import org.spacehq.mc.protocol.packet.ingame.server.entity.spawn.ServerSpawnObjectPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.entity.spawn.ServerSpawnPaintingPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.entity.spawn.ServerSpawnPlayerPacket;
+import org.spacehq.mc.protocol.packet.ingame.server.scoreboard.ServerTeamPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerBlockBreakAnimPacket;
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerBlockChangePacket;
 import org.spacehq.mc.protocol.packet.ingame.server.world.ServerChunkDataPacket;
@@ -95,6 +97,8 @@ import net.yzimroni.bukkitanimations.data.action.ActionType;
 import net.yzimroni.replayconverter.data.EntityData;
 import net.yzimroni.replayconverter.data.FullChunk;
 import net.yzimroni.replayconverter.data.Location;
+import net.yzimroni.replayconverter.data.PlayerData;
+import net.yzimroni.replayconverter.data.Team;
 import net.yzimroni.replayconverter.utils.Utils;
 
 public class PacketHandler {
@@ -235,8 +239,12 @@ public class PacketHandler {
 					.data("name", profile.getName()).data("entityId", p.getEntityId()).data("location", location)
 					.data("textures", profile.getProperty("textures"));
 			c.getTracker().getTrackedEntities().put(p.getEntityId(),
-					new EntityData(p.getEntityId(), EntityType.PLAYER, location));
+					new PlayerData(p.getEntityId(), location, profile.getId(), profile.getName()));
 			handleMetadata(action, EntityType.PLAYER, p.getMetadata());
+			String displayName = c.getTracker().getDisplayName(profile.getName());
+			if (displayName != null) {
+				action.data("customNameVisble", true).data("customName", displayName);
+			}
 			c.addAction(action);
 		});
 
@@ -509,6 +517,51 @@ public class PacketHandler {
 				c.addAction(new ActionData(ActionType.LOAD_SCHEMATIC).data("location", location).data("schematic",
 						schematicName));
 			}
+		});
+
+		addHandler(ServerTeamPacket.class, (p, c) -> {
+			Team team = null;
+			if (p.getAction() == TeamAction.CREATE) {
+				team = new Team(p.getTeamName(), p.getPrefix(), p.getSuffix(), p.getNameTagVisibility(), p.getColor());
+				c.getTracker().getTeams().add(team);
+			} else {
+				team = c.getTracker().getTeam(p.getTeamName());
+			}
+
+			if (p.getAction() == TeamAction.UPDATE) {
+				team.setPrefix(p.getPrefix());
+				team.setSuffix(p.getSuffix());
+				team.setNameTagVisible(p.getNameTagVisibility());
+				team.setColor(p.getColor());
+			}
+
+			if (p.getPlayers() != null && p.getPlayers().length > 0) {
+				boolean add = p.getAction() == TeamAction.CREATE || p.getAction() == TeamAction.ADD_PLAYER;
+				for (String player : p.getPlayers()) {
+					if (add) {
+						team.addPlayer(player);
+					} else {
+						team.removePlayer(player);
+					}
+					PlayerData playerData = c.getTracker().getPlayer(player);
+					if (playerData != null) {
+						c.updateEntityName(playerData.getEntityId(),
+								c.getTracker().getDisplayName(playerData.getName()));
+					}
+				}
+			}
+
+			if (p.getAction() == TeamAction.REMOVE) {
+				c.getTracker().getTeams().remove(team);
+				for (String player : team.getPlayers()) {
+					PlayerData playerData = c.getTracker().getPlayer(player);
+					if (playerData != null) {
+						c.updateEntityName(playerData.getEntityId(),
+								c.getTracker().getDisplayName(playerData.getName()));
+					}
+				}
+			}
+
 		});
 
 		addHandler(Packet.class, (p, c) -> {
