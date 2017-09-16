@@ -29,8 +29,11 @@ public class FullChunk extends CuboidClipboard {
 		return true;
 	}
 
+	public String getChunkId() {
+		return x + ";" + z;
+	}
+
 	public BaseBlock getBlock(int x, int y, int z) {
-		// System.out.println("getBlock(" + x + ", " + y + ", " + z + ")");
 		int chunkIndex = y / 16;
 		Chunk colum = columns[chunkIndex];
 		if (colum == null) {

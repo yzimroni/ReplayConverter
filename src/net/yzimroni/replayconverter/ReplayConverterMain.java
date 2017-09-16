@@ -17,10 +17,13 @@ public class ReplayConverterMain {
 			System.exit(1);
 		}
 
+		System.out.println("Starting");
 		CitizensAPI.setImplementation(new Citizens());
 		try {
+			System.out.println("Loading replay");
 			Replay replay = loadReplay(new File(args[0]));
 			if (replay != null) {
+				System.out.println("Replay loaded!");
 				ReplayConverter converter = new ReplayConverter(replay, new File(args[1]));
 				converter.convert();
 				converter.save();

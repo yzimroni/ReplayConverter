@@ -3,7 +3,9 @@ package net.yzimroni.replayconverter.utils;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.bukkit.Material;
@@ -14,8 +16,11 @@ import org.spacehq.mc.protocol.data.game.EntityMetadata;
 import org.spacehq.mc.protocol.data.game.ItemStack;
 import org.spacehq.mc.protocol.data.game.values.entity.MobType;
 import org.spacehq.mc.protocol.data.game.values.entity.ObjectType;
+import org.spacehq.mc.protocol.packet.ingame.server.ServerPlayerListEntryPacket;
+import org.spacehq.mc.protocol.packet.ingame.server.ServerRespawnPacket;
 import org.spacehq.mc.protocol.util.NetUtil;
 import org.spacehq.netty.buffer.Unpooled;
+import org.spacehq.packetlib.packet.Packet;
 import org.spacehq.packetlib.tcp.io.ByteBufNetOutput;
 
 import com.replaymod.replaystudio.studio.ReplayStudio;
@@ -33,11 +38,20 @@ public class Utils {
 
 	private static final Map<Object, EntityType> ENTITY_TYPE_MAP = new HashMap<Object, EntityType>();
 	private static final Map<Integer, String> POTION_EFFECTS = new HashMap<Integer, String>();
+	public static final List<Class<? extends Packet>> SHOULD_SAVE_BEFORE_RECORDING = Arrays
+			.asList(ServerPlayerListEntryPacket.class);
 
 	static {
 		PacketHandler.getHandlers().keySet().forEach(p -> {
 			STUDIO.setParsing(p, true);
 		});
+		SHOULD_SAVE_BEFORE_RECORDING.forEach(p -> {
+			STUDIO.setParsing(p, true);
+		});
+		// Special packets
+		for (Class<? extends Packet> p : Arrays.asList(ServerRespawnPacket.class)) {
+			STUDIO.setParsing(p, true);
+		}
 		initEntityMap();
 		initPotionEffectMap();
 	}

@@ -17,6 +17,7 @@ import org.bukkit.entity.Ageable;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Creeper;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Pig;
 import org.bukkit.entity.Sheep;
@@ -26,6 +27,7 @@ import org.bukkit.material.MaterialData;
 import org.bukkit.util.Vector;
 import org.spacehq.mc.auth.data.GameProfile;
 import org.spacehq.mc.protocol.data.game.EntityMetadata;
+import org.spacehq.mc.protocol.data.game.ItemStack;
 import org.spacehq.mc.protocol.data.game.Position;
 import org.spacehq.mc.protocol.data.game.Rotation;
 import org.spacehq.mc.protocol.data.game.values.MagicValues;
@@ -382,6 +384,7 @@ public class PacketHandler {
 			} else if (p.getEffect() != null) {
 				throw new IllegalArgumentException("Unknown world effect type: " + p.getEffect());
 			}
+			// TODO fix it, use the effect name?
 
 			int data = 0;
 			if (p.getData() instanceof RecordEffectData) {
@@ -564,6 +567,7 @@ public class PacketHandler {
 					}
 				}
 			}
+
 			if (ArmorStand.class.isAssignableFrom(type.getEntityClass())) {
 				EntityMetadata bitMaskData = Utils.getMetadataById(metadata, 10);
 				if (bitMaskData != null) {
@@ -589,7 +593,17 @@ public class PacketHandler {
 					}
 				}
 			}
-			/*
+		}
+
+		if (Item.class.isAssignableFrom(type.getEntityClass())) {
+			EntityMetadata itemData = Utils.getMetadataById(metadata, 10);
+			if (itemData != null) {
+				ItemStack item = (ItemStack) itemData.getValue();
+				action.data("item", Utils.serializeItem(item));
+			}
+		}
+
+		/*
 			 * @formatter:off
 			 * TODO
 			 * horse
@@ -604,14 +618,13 @@ public class PacketHandler {
 			 * Guardian
 			 * Minecart
 			 * Furnace Minecart
-			 * Item
 			 * Firework
 			 * Item Frame
 			 * 
 			 * 
 			 * @formatter:on
 			 */
-		}
+
 	}
 
 	private static <T extends Packet> void addHandler(Class<T> packet, BiConsumer<T, ReplayConverter> handler) {
