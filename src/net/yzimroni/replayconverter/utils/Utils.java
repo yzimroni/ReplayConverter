@@ -32,7 +32,7 @@ import com.sk89q.worldedit.schematic.SchematicFormat;
 
 import io.netty.buffer.ByteBuf;
 import net.minecraft.server.v1_8_R3.PacketDataSerializer;
-import net.yzimroni.replayconverter.PacketHandler;
+import net.yzimroni.replayconverter.convert.PacketHandler;
 
 @SuppressWarnings("deprecation")
 public class Utils {

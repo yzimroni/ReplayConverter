@@ -7,6 +7,7 @@ import com.replaymod.replaystudio.replay.Replay;
 
 import net.citizensnpcs.api.CitizensAPI;
 import net.yzimroni.replayconverter.bukkit.Citizens;
+import net.yzimroni.replayconverter.convert.ReplayConverter;
 import net.yzimroni.replayconverter.utils.Utils;
 
 public class ReplayConverterMain {

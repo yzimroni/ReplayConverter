@@ -1,4 +1,4 @@
-package net.yzimroni.replayconverter;
+package net.yzimroni.replayconverter.convert;
 
 import java.io.File;
 import java.util.Arrays;
