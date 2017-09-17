@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.bukkit.ChatColor;
 import org.spacehq.mc.auth.data.GameProfile;
 
 import net.yzimroni.replayconverter.data.EntityData;
@@ -39,7 +40,7 @@ public class ConverterTracker {
 		if (playerTeam == null) {
 			return null;
 		}
-		return playerTeam.getPrefix() + player + playerTeam.getSuffix();
+		return ChatColor.getLastColors(playerTeam.getPrefix()) + player /*+ playerTeam.getSuffix()*/;
 	}
 
 	public PlayerData getPlayer(String name) {
