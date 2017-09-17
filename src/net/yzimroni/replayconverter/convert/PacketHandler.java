@@ -256,7 +256,6 @@ public class PacketHandler {
 					.data("velocity", new Vector(p.getMotionX(), p.getMotionY(), p.getMotionZ()));
 			c.getTracker().getTrackedEntities().put(p.getEntityId(), new EntityData(p.getEntityId(), type, location));
 
-			// TODO head yaw
 			handleMetadata(action, type, p.getMetadata());
 			c.addAction(action);
 		});
@@ -573,13 +572,13 @@ public class PacketHandler {
 		EntityMetadata b_ = Utils.getMetadataById(metadata, 0);
 		if (b_ != null) {
 			byte b = (byte) b_.getValue();
-			boolean onFire = (b & 1 << 1) != 0;
+			boolean onFire = (b & 1 << 0) != 0;
 			boolean usingItem = (b & 1 << 4) != 0;
 			boolean invisible = (b & 1 << 5) != 0;
 
 			action.data("fireTicks", onFire ? Integer.MAX_VALUE : 0).data("visible", !invisible);
 			if (type == EntityType.PLAYER) {
-				boolean sneak = (b & 1 << 2) != 0;
+				boolean sneak = (b & 1 << 1) != 0;
 				boolean sprint = (b & 1 << 3) != 0;
 				action.data("sneaking", sneak).data("sprinting", sprint);
 			}
