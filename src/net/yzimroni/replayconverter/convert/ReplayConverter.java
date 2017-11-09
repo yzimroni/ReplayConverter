@@ -28,10 +28,10 @@ public class ReplayConverter extends Recorder {
 
 	/**
 	 * NOTE: Recording won't start at 'startAt', but rather at the first world
-	 * switch (Respawn packet) after 'startAt'
+	 * switch (Respawn packet) after 'startAt'. In ticks
 	 */
-	private int startAt = 2650;
-	private int endAt = 46868;
+	private int startAt = 800;
+	private int endAt = 2330;
 
 	private boolean recordingPackets;
 	private int startedAt;
@@ -116,7 +116,7 @@ public class ReplayConverter extends Recorder {
 	public void updateEntityName(int entityId, String displayName) {
 		if (recordingPackets && getTracker().getTrackedEntities().containsKey(entityId)) {
 			ActionData action = new ActionData(ActionType.UPDATE_ENTITY).data("entityId", entityId);
-			if (displayName == null) {
+			if (displayName == null || displayName.isEmpty()) {
 				action.data("customNameVisble", false);
 			} else {
 				action.data("customNameVisble", true).data("customName", displayName);

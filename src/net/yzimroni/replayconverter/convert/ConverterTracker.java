@@ -38,9 +38,12 @@ public class ConverterTracker {
 	public String getDisplayName(String player) {
 		Team playerTeam = getTeamByPlayer(player);
 		if (playerTeam == null) {
+			System.out.println("Player " + player + " has no team");
 			return null;
 		}
-		return ChatColor.getLastColors(playerTeam.getPrefix()) + player /*+ playerTeam.getSuffix()*/;
+		String name = ChatColor.getLastColors(playerTeam.getPrefix()) + player /*+ playerTeam.getSuffix()*/;
+		System.out.println("Name for " + name + ": " + name + " (team: " + playerTeam + ")");
+		return name;
 	}
 
 	public PlayerData getPlayer(String name) {

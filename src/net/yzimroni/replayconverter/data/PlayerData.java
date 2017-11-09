@@ -8,6 +8,8 @@ public class PlayerData extends EntityData {
 
 	private UUID uuid;
 	private String name;
+	
+	private String lastCustomName;
 
 	public PlayerData(int entityId, Location location, UUID uuid, String name) {
 		super(entityId, EntityType.PLAYER, location);
@@ -21,6 +23,14 @@ public class PlayerData extends EntityData {
 
 	public String getName() {
 		return name;
+	}
+
+	public String getLastCustomName() {
+		return lastCustomName;
+	}
+
+	public void setLastCustomName(String lastCustomName) {
+		this.lastCustomName = lastCustomName;
 	}
 
 }

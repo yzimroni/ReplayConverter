@@ -90,6 +90,7 @@ import org.spacehq.opennbt.tag.builtin.ListTag;
 import org.spacehq.opennbt.tag.builtin.Tag;
 import org.spacehq.packetlib.packet.Packet;
 
+import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableMap;
 
 import net.yzimroni.bukkitanimations.data.action.ActionData;
@@ -238,11 +239,13 @@ public class PacketHandler {
 			ActionData action = new ActionData(ActionType.SPAWN_ENTITY).data("type", EntityType.PLAYER)
 					.data("name", profile.getName()).data("entityId", p.getEntityId()).data("location", location)
 					.data("textures", profile.getProperty("textures"));
-			c.getTracker().getTrackedEntities().put(p.getEntityId(),
-					new PlayerData(p.getEntityId(), location, profile.getId(), profile.getName()));
+			PlayerData playerData = new PlayerData(p.getEntityId(), location, profile.getId(), profile.getName());
+			c.getTracker().getTrackedEntities().put(p.getEntityId(), playerData);
 			handleMetadata(action, EntityType.PLAYER, p.getMetadata());
 			String displayName = c.getTracker().getDisplayName(profile.getName());
 			if (displayName != null) {
+				System.out.println("On spawn changing " + profile.getName() + " to " + displayName);
+				playerData.setLastCustomName(displayName);
 				action.data("customNameVisble", true).data("customName", displayName);
 			}
 			c.addAction(action);
@@ -353,6 +356,7 @@ public class PacketHandler {
 						profile.put("name", owner.get("Name").getValue());
 					}
 					HashMap<String, Object> textures = new HashMap<String, Object>();
+					textures.put("name", "textures");
 					ListTag texturesTag = ((CompoundTag) owner.get("Properties")).get("textures");
 					CompoundTag texturesCompound = texturesTag.get(0);
 					for (Tag t : texturesCompound.values()) {
@@ -544,19 +548,30 @@ public class PacketHandler {
 					}
 					PlayerData playerData = c.getTracker().getPlayer(player);
 					if (playerData != null) {
-						c.updateEntityName(playerData.getEntityId(),
-								c.getTracker().getDisplayName(playerData.getName()));
+						String name = c.getTracker().getDisplayName(playerData.getName());
+						playerData.setLastCustomName(name);
+						System.out.println(
+								"On team player update changing player " + playerData.getName() + " name to " + name);
+						c.updateEntityName(playerData.getEntityId(), name);
 					}
 				}
 			}
 
 			if (p.getAction() == TeamAction.REMOVE) {
 				c.getTracker().getTeams().remove(team);
+			}
+
+			if (p.getAction() == TeamAction.REMOVE || p.getAction() == TeamAction.UPDATE) {
 				for (String player : team.getPlayers()) {
 					PlayerData playerData = c.getTracker().getPlayer(player);
 					if (playerData != null) {
-						c.updateEntityName(playerData.getEntityId(),
-								c.getTracker().getDisplayName(playerData.getName()));
+						String name = c.getTracker().getDisplayName(playerData.getName());
+						if (!Objects.equal(name, playerData.getLastCustomName())) {
+							playerData.setLastCustomName(name);
+							System.out.println("On team " + p.getAction() + " changing player " + playerData.getName()
+									+ " name to " + name);
+							c.updateEntityName(playerData.getEntityId(), name);
+						}
 					}
 				}
 			}
@@ -573,7 +588,7 @@ public class PacketHandler {
 		if (b_ != null) {
 			byte b = (byte) b_.getValue();
 			boolean onFire = (b & 1 << 0) != 0;
-			boolean usingItem = (b & 1 << 4) != 0;
+			boolean usingItem = (b & 1 << 4) != 0; // TODO
 			boolean invisible = (b & 1 << 5) != 0;
 
 			action.data("fireTicks", onFire ? Integer.MAX_VALUE : 0).data("visible", !invisible);
@@ -585,7 +600,7 @@ public class PacketHandler {
 		}
 		if (LivingEntity.class.isAssignableFrom(type.getEntityClass())) {
 			EntityMetadata nameTagData = Utils.getMetadataById(metadata, 2);
-			if (nameTagData != null) {
+			if (nameTagData != null && type != EntityType.PLAYER) {
 				action.data("customName", nameTagData.getValue());
 			}
 			EntityMetadata nameVisibleData = Utils.getMetadataById(metadata, 3);
